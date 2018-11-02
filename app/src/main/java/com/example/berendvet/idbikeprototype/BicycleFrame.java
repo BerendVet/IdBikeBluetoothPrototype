@@ -119,7 +119,13 @@ public class BicycleFrame {
         String s = "";
         int cnt = rx[3]+5;
         if (cnt>40) return "Message too large: " + cnt;
-        for (int i=0 ; i<cnt ; i++) s = s + rx[i] + " ";
+        for (int i=0 ; i<cnt ; i++) {
+            int v = rx[i] & 0xFF;
+            s += MainActivity.hexArray[v >>> 4];
+            s += MainActivity.hexArray[v & 0x0F];
+            s += '-';
+            // s = s + rx[i] + " ";
+        }
         return s;
     }
 

@@ -79,6 +79,10 @@ public class MainActivity extends Activity {
     TextView discoverText;
     TextView speedLabel;
 
+    Button increaseSupportButton;
+    Button decreaseSupportButton;
+    TextView supportModeView;
+
 
     public UartLinbus bike;
 
@@ -154,8 +158,7 @@ public class MainActivity extends Activity {
             @Override
             public void onClick(View view) {
                 disconnectGatt();
-                bike.bluetoothDevice = null;
-                bikeText.setText("No device connected");
+                // bikeText.setText("No device connected");
             }
         });
 
@@ -172,6 +175,25 @@ public class MainActivity extends Activity {
 
         //this.bikeText = findViewById(R.id.BikeText);
         this.discoverText = findViewById(R.id.DiscoverText);
+
+        supportModeView = findViewById(R.id.SupportModeView);
+        increaseSupportButton = findViewById(R.id.IncreaseSupportButton);
+        decreaseSupportButton = findViewById(R.id.DecreaseSupportButton);
+
+        increaseSupportButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                supportModeView.setText(bikeAdapter.increaseDriveMode().name());
+            }
+        });
+
+        decreaseSupportButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                supportModeView.setText(bikeAdapter.decreaseDriveMode().name());
+            }
+        });
+
     }
 
     @Override
@@ -202,9 +224,8 @@ public class MainActivity extends Activity {
     @Override
     protected void onStop(){
         super.onStop();
-        if(mConnectedGatt != null){
-            mConnectedGatt.disconnect();
-            mConnectedGatt = null;
+        if(bike.getConnected()){
+            bike.setConnectionState(false);
         }
     }
 
@@ -329,14 +350,14 @@ public class MainActivity extends Activity {
 
         @Override
         public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic characteristic) {
-            Log.e(TAG, "characterisc changed: " + bytesToHex(characteristic.getValue()));
+            // Log.e(TAG, "characterisc changed: " + bytesToHex(characteristic.getValue()));
             bike.onCharacteristicRead(characteristic);
             if (bra.req[bra.readIndex].type == 1) removeRequest();
         }
 
         @Override
         public void onDescriptorWrite(BluetoothGatt gatt, BluetoothGattDescriptor descriptor, int status) {
-            Log.e(TAG, "descriptor write: " + bytesToHex(descriptor.getValue()));
+            Log.e(TAG, "descriptor write: <" + bytesToHex(descriptor.getValue()) + ">");
             BtleRequest req = bra.req[bra.readIndex];
             if ((descriptor.getCharacteristic() != req.characteristic) || (req.type != 2)) return;
             if ((req.type == 2) && (req.gatt == gatt)) {
@@ -469,7 +490,9 @@ public class MainActivity extends Activity {
 
     public void disconnectGatt() {
         // disconnect gatt
-        bike.bluetoothGatt.disconnect();
+        if(bike.bluetoothGatt != null) {
+            bike.setConnectionState(false);
+        }
         // unpair device
         try {
             Method method = bike.getClass().getMethod("removeBond", (Class[]) null);
@@ -518,7 +541,7 @@ public class MainActivity extends Activity {
         return (k1==-1)? "" : s;
     }
 
-    private final static char[] hexArray = "0123456789ABCDEF".toCharArray();
+    public final static char[] hexArray = "0123456789ABCDEF".toCharArray();
     public static String bytesToHex(byte[] bytes) {
         char[] hexChars = new char[bytes.length * 3];
         for ( int j = 0; j < bytes.length; j++ ) {

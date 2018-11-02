@@ -117,7 +117,7 @@ public class BicycleAdapter extends TimerTask {
     }
 
     @Override
-    public void run() {} // Empty function
+    public void run() { } // Empty function
 
     public String byteArrayToString(byte buffer[], int n) {    // Used for debugging purposes
         String s = "";
@@ -128,7 +128,7 @@ public class BicycleAdapter extends TimerTask {
     public void readBuffer(byte buffer[]) {
         byte b;	// one read may contain at most 4096 characters
         int k, cnt = buffer.length;
-        // Log.e("Infox", "RX: " + byteArrayToString(buffer, buffer.length));
+        Log.e(TAG, "RX: " + byteArrayToString(buffer, buffer.length));
         for (int i=0 ; i<cnt ; i++) {
             b = buffer[i];
             k = frame.readCharacter(b);
@@ -147,8 +147,6 @@ public class BicycleAdapter extends TimerTask {
     void ProcessMessage() {
         frame.index = (frame.BTLEFRAME)? 1 : -1;   // Reset index of new frame
         Log.i(TAG, "New message: <" + frame.toString()  + ">");
-        Log.i(TAG, "4 : " + frame.rx[4]);
-        Log.i(TAG, "5 : " + frame.rx[5]);
         switch (frame.rx[4]) {
             case BicycleFrame.DT_DISPLAYTYPE:
                 CreateStandardMessage(BicycleFrame.DT_DISPLAYTYPE);
@@ -162,9 +160,10 @@ public class BicycleAdapter extends TimerTask {
                 // ma.runOnUiThread(new WritePowerStateToView());
                 return;
             case BicycleFrame.DT_MATRIXSETSPEED:
-
                 varp[0].value = (frame.rx[5]<<8) + frame.rx[6];
                 varp[0].writeValueToView();
+                ma.speedLabel.setText(varp[0].value / 10 + " km/h");
+                Log.i(TAG, "speed received: " + varp[0].value / 10);
                 break;
             case BicycleFrame.DT_MATRIXSETMAXSPEED:
                 varp[1].value = (frame.rx[5]<<8) + frame.rx[6];
@@ -272,6 +271,43 @@ public class BicycleAdapter extends TimerTask {
 
     public void setDriveMode(int x) {
         if ((x>=0) && (x<=conp[39].value)) driveMode = x;
+        //TransmitDriveMode();
+    }
+
+    public SupportLevel increaseDriveMode() {
+        if(driveMode < 4 ) driveMode++;
+        //TransmitDriveMode();
+        switch (driveMode){
+            case 0:
+                return SupportLevel.OFF;
+            case 1:
+                return SupportLevel.ECO_MODE;
+            case 2:
+                return SupportLevel.NORMAL;
+            case 3:
+                return SupportLevel.BOOST;
+            case 4:
+                return SupportLevel.BOOST_PLUS;
+        }
+        return SupportLevel.OFF;
+    }
+
+    public SupportLevel decreaseDriveMode() {
+        if(driveMode > 0 ) driveMode--;
+        //TransmitDriveMode();
+        switch (driveMode){
+            case 0:
+                return SupportLevel.OFF;
+            case 1:
+                return SupportLevel.ECO_MODE;
+            case 2:
+                return SupportLevel.NORMAL;
+            case 3:
+                return SupportLevel.BOOST;
+            case 4:
+                return SupportLevel.BOOST_PLUS;
+        }
+        return SupportLevel.OFF;
     }
 
     public void resetTrip() {
@@ -287,7 +323,7 @@ public class BicycleAdapter extends TimerTask {
         power = on;
         if (!on) {
             userAction = 3;  // userAction = 3 when power goes off
-            CreateStandardMessage(frame.DT_MATRIXGETUSERACTION);
+            //CreateStandardMessage(frame.DT_MATRIXGETUSERACTION);
         }
         else {
             userAction = 0x30; // self defined userAction to turn display on
@@ -301,7 +337,7 @@ public class BicycleAdapter extends TimerTask {
         buf[1] = 0;
         buf[2] = 1;
         buf[3] = 3;
-        buf[4] = BicycleFrame.DT_MATRIXGETDRIVEMODE;
+        buf[4] = BicycleFrame.DT_MATRIXSETDRIVEMODE; // GETDRIVEMODE or SETDRIVEMODE ???
         buf[5] = (byte) driveMode;
         buf[6] = 5;
         TransmitMessage(buf);
@@ -323,6 +359,7 @@ public class BicycleAdapter extends TimerTask {
                 buf[5] = (byte) ((headLight)? 1 : 0); break;
             case BicycleFrame.DT_MATRIXGETUSERACTION:      // 0x4D
                 int x = (byte) userAction;
+                Log.v("USERACTION", "" + userAction);
                 if (x==0) {
                     ++userActionCount;
                     if (userActionCount % 3 == 0) x = 12;       // I am alive
@@ -340,7 +377,7 @@ public class BicycleAdapter extends TimerTask {
         byte crc=1;
         for (int i=3 ; i<li ; i++) crc ^= buf[i];
         buf[li] = crc;
-        // Log.i("Infox", "RX: " + frame.toString()  + "   TX: " + byteArrayToString(buf, li+1));
+         Log.i(TAG, "RX: " + frame.toString()  + "   TX: " + byteArrayToString(buf, li+1));
         ma.bike.write(buf, li+1);
     }
 
@@ -401,5 +438,13 @@ public class BicycleAdapter extends TimerTask {
 //            if (ma.bcd!=null) ma.bcd.setPower(power);
 //        }
 //    }
+
+    public enum SupportLevel {
+        OFF,
+        ECO_MODE,
+        NORMAL,
+        BOOST,
+        BOOST_PLUS
+    }
 
 }
